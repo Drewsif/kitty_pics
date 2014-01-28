@@ -12,16 +12,19 @@ import urllib2
 from urllib import urlretrieve
 import re
 import time
-import uuid
 
 def download(url, out_folder):
     filename = url.split("/")[-1]
     filename = filename.split("?")[0]
     if filename == "":
-        filename = str(uuid.uuid4())
+        return 0
     outpath = os.path.join(out_folder, filename)
-    urlretrieve(url, outpath)
-    print filename
+    try:
+        urlretrieve(url, outpath)
+    except:
+        return 0
+    print url + " > " + filename
+    return 1
 
 def openurl(url):
     headers = { 'User-Agent' : "Mozilla/5.0" }
@@ -30,13 +33,15 @@ def openurl(url):
     return htmlText
 
 def redditurl(url, out_folder, max_number):
-    imgurregx = re.compile("http://imgur.com/")
-    aimgurregx = re.compile("http://imgur.com/a/")   
-    iimgurregx = re.compile("http://i.imgur.com/")    
+    imgurregx = re.compile("http://imgur.com/\w+")
+    aimgurregx = re.compile("http://imgur.com/a/\w+")   
+    iimgurregx = re.compile("http://i.imgur.com/\w+")    
+    default_image = re.compile("([^\s]+(\.(?i)(jpg|png|gif|bmp|jpeg|tif|tiff|emf|wmf))$)") 
     current_num = 0
     last = ""
+
     soup = bs(openurl(url))
-    while current_num < max_number:
+    while int(current_num) < int(max_number):
         for link in soup.findAll("a"):
             try:
                 href = str(link.get("href"))
@@ -44,24 +49,22 @@ def redditurl(url, out_folder, max_number):
                 continue
             if last == href: continue
             if aimgurregx.match(href):
-                print "album!"
                 ssoup = bs(openurl(href))
                 for img in ssoup.findAll(property="og:image"):
-                    download(img.get("content"), out_folder)
-                print "end"
+                    current_num += download(img.get("content"), out_folder)
             elif imgurregx.match(href):
                 ssoup = bs(openurl(href))
-                download(ssoup.find(rel="image_src").get("href"), out_folder)
-                current_num += 1
+                current_num += download(ssoup.find(rel="image_src").get("href"), out_folder)
             elif iimgurregx.match(href):
-                download(href, out_folder)
-                current_num += 1
+                current_num += download(href, out_folder)
+            elif default_image.match(href):
+                current_num += download(href, out_folder)
             last = href
         try:
             next_link = soup.find(rel="nofollow next").get("href")
         except:    
             return(-2)
-        print next_link
+        print "Next Page: " + next_link
         soup = bs(openurl(next_link))
 
 def genericurl(url, out_folder, max_number):
@@ -87,6 +90,6 @@ if __name__ == "__main__":
     parser.add_argument('list', help="Line delimeted file of URLs")
     parser.add_argument('-d', "--dir", required=False, help="Dir to download to", default='./Cats', metavar="dir")
     #parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("-n", "--number", required=False, help="Max number of pictures per URL", default="500", metavar="num")
+    parser.add_argument("-n", "--number", required=False, help="Max number of pictures per URL. More of a guideline.", default="500", metavar="num")
     args = parser.parse_args()
     main(args.list, args.dir, args.number)
