@@ -12,10 +12,13 @@ import urllib2
 from urllib import urlretrieve
 import re
 import time
+import uuid
 
 def download(url, out_folder):
     filename = url.split("/")[-1]
     filename = filename.split("?")[0]
+    if filename == "":
+        filename = str(uuid.uuid4())
     outpath = os.path.join(out_folder, filename)
     urlretrieve(url, outpath)
     print filename
@@ -28,6 +31,7 @@ def openurl(url):
 
 def redditurl(url, out_folder, max_number):
     imgurregx = re.compile("http://imgur.com/")
+    aimgurregx = re.compile("http://imgur.com/a/")   
     iimgurregx = re.compile("http://i.imgur.com/")    
     current_num = 0
     last = ""
@@ -39,7 +43,13 @@ def redditurl(url, out_folder, max_number):
             except:
                 continue
             if last == href: continue
-            if imgurregx.match(href):
+            if aimgurregx.match(href):
+                print "album!"
+                ssoup = bs(openurl(href))
+                for img in ssoup.findAll(property="og:image"):
+                    download(img.get("content"), out_folder)
+                print "end"
+            elif imgurregx.match(href):
                 ssoup = bs(openurl(href))
                 download(ssoup.find(rel="image_src").get("href"), out_folder)
                 current_num += 1
@@ -55,18 +65,10 @@ def redditurl(url, out_folder, max_number):
         soup = bs(openurl(next_link))
 
 def genericurl(url, out_folder, max_number):
-#need to fix this beast up
-    soup = bs(urllib2.urlopen(url))
-    url_parsed = list(urlparse.urlparse(url))
+    soup = bs(openurl(url))
     for image in soup.findAll("img"):
-        print ("Image: " + (image["src"]))
-        filename = image["src"].split("/")[-1]
-        url_parsed[2] = image["src"]
-        outpath = os.path.join(out_folder, filename)
-        if image["src"].lower().startswith("http"):
-            urlretrieve(image["src"], outpath)
-        else:
-            urlretrieve(urlparse.urlunparse(parsed), outpath)
+        print ("Image: " + (image.get("src")))
+        download(image.get("src"))
 
 def main(url_file, out_folder, max_number):
     """Downloads all the images at 'url' to cats/"""
