@@ -28,7 +28,8 @@ def openurl(url):
 
 def redditurl(url, out_folder, max_number):
     imgurregx = re.compile("http://imgur.com/")
-    iimgurregx = re.compile("http://i.imgur.com/")    
+    iimgurregx = re.compile("http://i.imgur.com/")
+    default_image = re.compile("([^\s]+(\.(?i)(jpg|png|gif|bmp|jpeg|tif|tiff|emf|wmf))$)") 
     current_num = 0
     last = ""
     soup = bs(openurl(url))
@@ -44,6 +45,9 @@ def redditurl(url, out_folder, max_number):
                 download(ssoup.find(rel="image_src").get("href"), out_folder)
                 current_num += 1
             elif iimgurregx.match(href):
+                download(href, out_folder)
+                current_num += 1
+            elif default_image.match(href):
                 download(href, out_folder)
                 current_num += 1
             last = href
