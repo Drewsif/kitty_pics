@@ -20,35 +20,39 @@ def download(url, out_folder):
     urlretrieve(url, outpath)
     print filename
 
-def redditurl(url, out_folder, max_number):
-    imgurregx = re.compile("http://imgur.com/")
-    iimgurregx = re.compile("http://i.imgur.com/")
+def openurl(url):
     headers = { 'User-Agent' : "Mozilla/5.0" }
-    current_num = 0
-
     req = urllib2.Request(url, None, headers)
     htmlText = urllib2.urlopen(req).read()
-    soup = bs(htmlText)
+    return htmlText
+
+def redditurl(url, out_folder, max_number):
+    imgurregx = re.compile("http://imgur.com/")
+    iimgurregx = re.compile("http://i.imgur.com/")    
+    current_num = 0
+    last = ""
+    soup = bs(openurl(url))
     while current_num < max_number:
         for link in soup.findAll("a"):
             try:
                 href = str(link.get("href"))
             except:
-                href=""
-            if imgurregx.match(href):
-                #TODO
                 continue
+            if last == href: continue
+            if imgurregx.match(href):
+                ssoup = bs(openurl(href))
+                download(ssoup.find(rel="image_src").get("href"), out_folder)
+                current_num += 1
             elif iimgurregx.match(href):
                 download(href, out_folder)
                 current_num += 1
+            last = href
         try:
             next_link = soup.find(rel="nofollow next").get("href")
         except:    
             return(-2)
         print next_link
-        req = urllib2.Request(next_link, None, headers)
-        htmlText = urllib2.urlopen(req).read()
-        soup = bs(htmlText)
+        soup = bs(openurl(next_link))
 
 def genericurl(url, out_folder, max_number):
 #need to fix this beast up
@@ -80,7 +84,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="For downloading lots and lots of cat pictures.")
     parser.add_argument('list', help="Line delimeted file of URLs")
     parser.add_argument('-d', "--dir", required=False, help="Dir to download to", default='./Cats', metavar="dir")
-    parser.add_argument("-v", "--verbose", action="store_true")
+    #parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-n", "--number", required=False, help="Max number of pictures per URL", default="500", metavar="num")
     args = parser.parse_args()
     main(args.list, args.dir, args.number)
