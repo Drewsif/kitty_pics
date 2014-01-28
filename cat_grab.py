@@ -19,6 +19,7 @@ def download(url, out_folder):
     if filename == "":
         return 0
     outpath = os.path.join(out_folder, filename)
+    if os.path.isfile(outpath): return 1
     try:
         urlretrieve(url, outpath)
     except:
@@ -29,7 +30,10 @@ def download(url, out_folder):
 def openurl(url):
     headers = { 'User-Agent' : "Mozilla/5.0" }
     req = urllib2.Request(url, None, headers)
-    htmlText = urllib2.urlopen(req).read()
+    try:
+        htmlText = urllib2.urlopen(req).read()
+    except:
+        return ""
     return htmlText
 
 def redditurl(url, out_folder, max_number):
@@ -41,6 +45,7 @@ def redditurl(url, out_folder, max_number):
     last = ""
 
     soup = bs(openurl(url))
+    print "Page: " + url
     while int(current_num) < int(max_number):
         for link in soup.findAll("a"):
             try:
@@ -49,12 +54,20 @@ def redditurl(url, out_folder, max_number):
                 continue
             if last == href: continue
             if aimgurregx.match(href):
-                ssoup = bs(openurl(href))
+                page = openurl(href)
+                if page == "": continue
+                ssoup = bs(page)
                 for img in ssoup.findAll(property="og:image"):
                     current_num += download(img.get("content"), out_folder)
             elif imgurregx.match(href):
-                ssoup = bs(openurl(href))
-                current_num += download(ssoup.find(rel="image_src").get("href"), out_folder)
+                page = openurl(href)
+                if page == "": continue
+                ssoup = bs(page)
+                try:
+                    img = ssoup.find(rel="image_src").get("href")
+                except:
+                    continue
+                current_num += download(img , out_folder)
             elif iimgurregx.match(href):
                 current_num += download(href, out_folder)
             elif default_image.match(href):
