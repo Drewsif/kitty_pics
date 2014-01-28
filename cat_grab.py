@@ -20,15 +20,18 @@ def download(url, out_folder):
     urlretrieve(url, outpath)
     print filename
 
+def openurl(url):
+    headers = { 'User-Agent' : "Mozilla/5.0" }
+    req = urllib2.Request(url, None, headers)
+    htmlText = urllib2.urlopen(req).read()
+    return htmlText
+
 def redditurl(url, out_folder, max_number):
     imgurregx = re.compile("http://imgur.com/")
     iimgurregx = re.compile("http://i.imgur.com/")
-    headers = { 'User-Agent' : "Mozilla/5.0" }
+    
     current_num = 0
-
-    req = urllib2.Request(url, None, headers)
-    htmlText = urllib2.urlopen(req).read()
-    soup = bs(htmlText)
+    soup = bs(openurl(url))
     while current_num < max_number:
         for link in soup.findAll("a"):
             try:
@@ -36,8 +39,9 @@ def redditurl(url, out_folder, max_number):
             except:
                 href=""
             if imgurregx.match(href):
-                #TODO
-                continue
+                ssoup = bs(openurl(href))
+                download(ssoup.find(rel="image_src").get("href"), out_folder)
+                current_num += 1
             elif iimgurregx.match(href):
                 download(href, out_folder)
                 current_num += 1
@@ -46,9 +50,7 @@ def redditurl(url, out_folder, max_number):
         except:    
             return(-2)
         print next_link
-        req = urllib2.Request(next_link, None, headers)
-        htmlText = urllib2.urlopen(req).read()
-        soup = bs(htmlText)
+        soup = bs(openurl(next_link))
 
 def genericurl(url, out_folder, max_number):
 #need to fix this beast up
